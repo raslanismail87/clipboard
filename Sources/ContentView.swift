@@ -11,9 +11,12 @@ struct ContentView: View {
                 LazyVStack(spacing: 12) {
                     ForEach(clipboardManager.filteredItems) { item in
                         ClipboardItemView(item: item)
-                            .onTapGesture(count: 2) {
-                                clipboardManager.copyAndPaste(item)
-                            }
+                            // High priority double-click to ensure paste takes precedence
+                            .highPriorityGesture(
+                                TapGesture(count: 2).onEnded {
+                                    clipboardManager.copyAndPaste(item)
+                                }
+                            )
                             .onTapGesture {
                                 clipboardManager.copyToClipboard(item)
                             }

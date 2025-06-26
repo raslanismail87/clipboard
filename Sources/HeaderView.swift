@@ -8,13 +8,7 @@ struct HeaderView: View {
             HStack(spacing: 12) {
                 Image(systemName: "doc.on.clipboard")
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [.blue, .purple],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                    .foregroundColor(.accentColor)
                 
                 SearchBar(text: $clipboardManager.searchText)
             }
@@ -25,8 +19,8 @@ struct HeaderView: View {
         .padding(.vertical, 16)
         .background(
             Rectangle()
-                .fill(Color(NSColor.windowBackgroundColor))
-                .shadow(color: .black.opacity(0.08), radius: 1, x: 0, y: 1)
+                .fill(.ultraThinMaterial)
+                .shadow(color: .black.opacity(0.05), radius: 1, x: 0, y: 1)
         )
     }
 }
@@ -47,13 +41,12 @@ struct SearchBar: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
         .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(NSColor.controlBackgroundColor))
-                .shadow(color: .black.opacity(0.05), radius: 1, x: 0, y: 1)
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(.regularMaterial)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.gray.opacity(0.15), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
         )
     }
 }
@@ -99,18 +92,7 @@ struct FilterTab: View {
             .padding(.vertical, 8)
             .background(
                 RoundedRectangle(cornerRadius: 20)
-                    .fill(isSelected ? 
-                          LinearGradient(
-                            colors: [Color.blue, Color.blue.opacity(0.8)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                          ) : 
-                          LinearGradient(
-                            colors: [Color.clear, Color.clear],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                          )
-                    )
+                    .fill(isSelected ? Color.accentColor : Color.clear)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 20)
