@@ -25,27 +25,23 @@ struct ClipboardItemView: View {
         }
         .padding(16)
         .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(
-                    isHovered ? 
-                    Color(NSColor.controlBackgroundColor) :
-                    Color(NSColor.textBackgroundColor)
-                )
-                .shadow(
-                    color: .black.opacity(isHovered ? 0.12 : 0.06), 
-                    radius: isHovered ? 8 : 4, 
-                    x: 0, 
-                    y: isHovered ? 4 : 2
-                )
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(.regularMaterial)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 16)
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .stroke(
-                    isHovered ? Color.blue.opacity(0.3) : Color.clear, 
+                    isHovered ? Color.accentColor.opacity(0.4) : Color.clear,
                     lineWidth: 1
                 )
         )
-        .scaleEffect(isHovered ? 1.02 : 1.0)
+        .shadow(
+            color: .black.opacity(isHovered ? 0.15 : 0.05),
+            radius: isHovered ? 6 : 3,
+            x: 0,
+            y: isHovered ? 3 : 1
+        )
+        .scaleEffect(isHovered ? 1.01 : 1.0)
         .animation(.easeInOut(duration: 0.15), value: isHovered)
         .onHover { hovering in
             isHovered = hovering
