@@ -2,11 +2,11 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject var clipboardManager: ClipboardManager
-    
+
     var body: some View {
         VStack(spacing: 0) {
             HeaderView()
-            
+
             ScrollView {
                 LazyVStack(spacing: 12) {
                     ForEach(clipboardManager.filteredItems) { item in
