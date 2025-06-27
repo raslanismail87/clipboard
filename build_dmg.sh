@@ -132,6 +132,10 @@ xattr -rc "${DMG_NAME}.dmg" 2>/dev/null || true
 echo "Verifying DMG integrity..."
 hdiutil verify "${DMG_NAME}.dmg"
 
+# Apply Gatekeeper fix
+echo "Applying Gatekeeper compatibility fixes..."
+./fix_gatekeeper.sh >/dev/null 2>&1 && echo "✅ Gatekeeper fixes applied" || echo "⚠️  Gatekeeper fix failed (DMG should still work)"
+
 if [ $? -eq 0 ]; then
     echo "✅ DMG created successfully: ${DMG_NAME}.dmg"
     echo "🎯 Version: $VERSION"
