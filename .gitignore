@@ -8,9 +8,6 @@ DerivedData/
 .netrc
 
 # Build artifacts
-build/
-dmg_build/
-*.dmg
 
 # Version file (auto-generated)
 .version
