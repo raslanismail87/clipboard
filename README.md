@@ -55,13 +55,24 @@ ClipFlow is a native macOS clipboard manager that keeps track of everything you 
 
 ## Installation
 
-### Download from GitHub Pages
-1. Visit [ClipFlow Download Page](https://raslanismail87.github.io/clipboard/)
-2. Click "Download ClipFlow v1.1.0.dmg"
-3. Open the downloaded DMG file
-4. Drag ClipFlow to your Applications folder
+### Option 1: Homebrew (Recommended)
+```bash
+# Add the ClipFlow tap and install
+brew tap raslanismail87/clipboard https://github.com/raslanismail87/clipboard
+brew install clipflow
 
-### Build from Source
+# Launch ClipFlow
+open "$(brew --prefix)/bin/ClipFlow.app"
+```
+
+### Option 2: Download from GitHub Pages
+1. Visit [ClipFlow Download Page](https://raslanismail87.github.io/clipboard/)
+2. Choose your preferred download:
+   - **App Bundle ZIP** (recommended) - Direct app download
+   - **DMG** (traditional) - Classic installer
+3. Follow the installation instructions on the page
+
+### Option 3: Build from Source
 ```bash
 git clone https://github.com/raslanismail87/clipboard.git
 cd clipboard
