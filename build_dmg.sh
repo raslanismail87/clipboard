@@ -54,7 +54,15 @@ fi
 mkdir -p "$DMG_DIR"
 
 # Copy app to DMG directory
+echo "Copying app bundle..."
 cp -R "$BUILD_DIR/$APP_NAME.app" "$DMG_DIR/"
+
+# Remove quarantine and extended attributes from app bundle
+echo "Cleaning app bundle attributes..."
+xattr -cr "$DMG_DIR/$APP_NAME.app" 2>/dev/null || true
+
+# Ensure proper permissions
+chmod -R 755 "$DMG_DIR/$APP_NAME.app"
 
 # Create Applications symlink for easy installation
 ln -s /Applications "$DMG_DIR/Applications"
@@ -115,6 +123,14 @@ fi
 # Create DMG
 echo "Creating DMG..."
 hdiutil create -volname "$APP_NAME" -srcfolder "$DMG_DIR" -ov -format UDZO "${DMG_NAME}.dmg"
+
+# Remove quarantine attribute to prevent Gatekeeper issues
+echo "Removing quarantine attributes..."
+xattr -rc "${DMG_NAME}.dmg" 2>/dev/null || true
+
+# Verify DMG integrity
+echo "Verifying DMG integrity..."
+hdiutil verify "${DMG_NAME}.dmg"
 
 if [ $? -eq 0 ]; then
     echo "✅ DMG created successfully: ${DMG_NAME}.dmg"
