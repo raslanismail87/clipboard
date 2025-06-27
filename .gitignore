@@ -6,3 +6,11 @@ DerivedData/
 .swiftpm/configuration/registries.json
 .swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
 .netrc
+
+# Build artifacts
+build/
+dmg_build/
+*.dmg
+
+# Version file (auto-generated)
+.version

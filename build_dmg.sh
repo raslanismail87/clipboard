@@ -3,17 +3,42 @@
 # Build DMG for ClipFlow macOS app
 
 APP_NAME="ClipFlow"
-VERSION="1.0.0"
+
+# Auto-increment version
+VERSION_FILE=".version"
+if [ ! -f "$VERSION_FILE" ]; then
+    echo "1.1.0" > "$VERSION_FILE"
+fi
+
+# Read current version
+CURRENT_VERSION=$(cat "$VERSION_FILE")
+
+# Parse version components
+IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+
+# Increment patch version
+PATCH=$((PATCH + 1))
+
+# Create new version
+VERSION="${MAJOR}.${MINOR}.${PATCH}"
+
+# Save new version
+echo "$VERSION" > "$VERSION_FILE"
+
+# Update DMG name
 DMG_NAME="${APP_NAME}-${VERSION}"
+
+echo "🔄 Auto-incrementing version: $CURRENT_VERSION → $VERSION"
 BUILD_DIR="build"
 DMG_DIR="dmg_build"
 BACKGROUND_IMG="dmg_background.png"
 
 echo "Building ${APP_NAME} DMG installer..."
 
-# Clean previous DMG build
+# Clean previous DMG builds
 rm -rf "$DMG_DIR"
-rm -f "${DMG_NAME}.dmg"
+rm -f "${APP_NAME}"-*.dmg
+echo "🧹 Cleaned old DMG files"
 
 # First build the app if it doesn't exist
 if [ ! -d "$BUILD_DIR/$APP_NAME.app" ]; then
@@ -93,14 +118,22 @@ hdiutil create -volname "$APP_NAME" -srcfolder "$DMG_DIR" -ov -format UDZO "${DM
 
 if [ $? -eq 0 ]; then
     echo "✅ DMG created successfully: ${DMG_NAME}.dmg"
+    echo "🎯 Version: $VERSION"
     
     # Get DMG size
     DMG_SIZE=$(ls -lh "${DMG_NAME}.dmg" | awk '{print $5}')
     echo "📦 DMG size: $DMG_SIZE"
     
     echo ""
-    echo "DMG ready for distribution!"
-    echo "Users can simply download and drag ClipFlow.app to Applications"
+    echo "🚀 DMG ready for distribution!"
+    echo "📋 File: ${DMG_NAME}.dmg"
+    echo "🔢 Version: $VERSION"
+    echo "👥 Users can simply download and drag ClipFlow.app to Applications"
+    echo ""
+    echo "💡 Next steps:"
+    echo "   - Test the DMG installation"
+    echo "   - Update GitHub Pages with new version"
+    echo "   - Commit and push the new version"
     
     # Clean up
     rm -rf "$DMG_DIR"

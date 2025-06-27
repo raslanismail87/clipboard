@@ -140,6 +140,21 @@ ClipFlow/
 2. Open `ClipFlow.xcodeproj` in Xcode
 3. Build and run (`Cmd+R`)
 
+### Creating Release DMG
+```bash
+# Auto-increment version and build DMG
+./build_dmg.sh
+
+# Manual version management
+./version.sh show              # Show current version
+./version.sh set 2.0.0         # Set specific version
+./version.sh major             # Increment major version
+./version.sh minor             # Increment minor version
+./version.sh patch             # Increment patch version
+```
+
+The build system automatically increments the patch version (e.g., 1.1.0 → 1.1.1) each time you run `build_dmg.sh`. Use the `version.sh` script for manual version control.
+
 ### Contributing
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
