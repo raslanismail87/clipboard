@@ -5,8 +5,6 @@ class Clipflow < Formula
   version "1.1.3"
   sha256 "75178a42c7cfa641d36226c17dc7c3ec118021f4daecc3853343a5d4fcfa785f"
   
-  depends_on macos: ">= :big_sur"
-  
   def install
     prefix.install "ClipFlow.app"
   end
