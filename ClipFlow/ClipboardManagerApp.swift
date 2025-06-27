@@ -11,8 +11,14 @@ struct ClipboardManagerApp: App {
                 .environmentObject(clipboardManager)
                 .onAppear {
                     menuBarManager.setClipboardManager(clipboardManager)
+                    clipboardManager.menuBarManager = menuBarManager
                     hotkeyManager.setHotkeyAction {
                         menuBarManager.showPopover()
+                    }
+                    
+                    // Debug permissions on startup
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                        clipboardManager.debugPermissionStatus()
                     }
                 }
         }

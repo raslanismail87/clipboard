@@ -4,16 +4,12 @@ struct HeaderView: View {
     @EnvironmentObject var clipboardManager: ClipboardManager
     
     var body: some View {
-        VStack(spacing: 18) {
-            HStack(spacing: 12) {
-                Image(systemName: "doc.on.clipboard")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(.accentColor)
-                
-                SearchBar(text: $clipboardManager.searchText)
-            }
+        HStack(spacing: 12) {
+            Image(systemName: "doc.on.clipboard")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundColor(.accentColor)
             
-            FilterTabsView()
+            SearchBar(text: $clipboardManager.searchText)
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 16)
@@ -51,56 +47,3 @@ struct SearchBar: View {
     }
 }
 
-struct FilterTabsView: View {
-    @EnvironmentObject var clipboardManager: ClipboardManager
-    
-    var body: some View {
-        HStack(spacing: 8) {
-            ForEach(ClipboardManager.FilterType.allCases, id: \.rawValue) { filter in
-                FilterTab(
-                    title: filter.rawValue,
-                    isSelected: clipboardManager.selectedFilter == filter
-                ) {
-                    clipboardManager.selectedFilter = filter
-                }
-            }
-            
-            Spacer()
-        }
-    }
-}
-
-struct FilterTab: View {
-    let title: String
-    let isSelected: Bool
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 6) {
-                if title == "All" {
-                    Image(systemName: "doc.on.clipboard")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(isSelected ? .white : .secondary)
-                }
-                
-                Text(title)
-                    .font(.system(size: 13, weight: isSelected ? .semibold : .medium))
-                    .foregroundColor(isSelected ? .white : .primary)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(isSelected ? Color.accentColor : Color.clear)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 20)
-                    .stroke(isSelected ? Color.clear : Color.gray.opacity(0.2), lineWidth: 1)
-            )
-        }
-        .buttonStyle(PlainButtonStyle())
-        .scaleEffect(isSelected ? 1.0 : 0.98)
-        .animation(.easeInOut(duration: 0.2), value: isSelected)
-    }
-}

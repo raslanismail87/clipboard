@@ -5,20 +5,12 @@ import Combine
 class ClipboardManager: ObservableObject {
     @Published var items: [ClipboardItem] = []
     @Published var searchText: String = ""
-    @Published var selectedFilter: FilterType = .all
     
     private var pasteboard = NSPasteboard.general
     private var lastChangeCount: Int = 0
     private var timer: Timer?
     private let persistenceManager = PersistenceManager()
     
-    enum FilterType: String, CaseIterable {
-        case all = "All"
-        case today = "Today"
-        case text = "Text"
-        case image = "Image"
-        case link = "Link"
-    }
     
     init() {
         loadPersistedItems()
@@ -143,20 +135,6 @@ class ClipboardManager: ObservableObject {
     
     var filteredItems: [ClipboardItem] {
         var filtered = items
-        
-        switch selectedFilter {
-        case .all:
-            break
-        case .today:
-            let today = Calendar.current.startOfDay(for: Date())
-            filtered = filtered.filter { $0.timestamp >= today }
-        case .text:
-            filtered = filtered.filter { $0.type == .text }
-        case .image:
-            filtered = filtered.filter { $0.type == .image }
-        case .link:
-            filtered = filtered.filter { $0.type == .link }
-        }
         
         if !searchText.isEmpty {
             filtered = filtered.filter { item in

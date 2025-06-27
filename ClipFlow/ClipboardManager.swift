@@ -1,24 +1,22 @@
 import Foundation
 import AppKit
 import Combine
+import CoreGraphics
+import ApplicationServices
 
 class ClipboardManager: ObservableObject {
     @Published var items: [ClipboardItem] = []
     @Published var searchText: String = ""
-    @Published var selectedFilter: FilterType = .all
     
     private var pasteboard = NSPasteboard.general
     private var lastChangeCount: Int = 0
     private var timer: Timer?
     private let persistenceManager = PersistenceManager()
+    weak var menuBarManager: MenuBarManager?
+    private var hasShownPermissionAlert = false
+    private var cachedPermissionStatus: Bool?
+    private var lastPermissionCheck: Date = Date(timeIntervalSince1970: 0)
     
-    enum FilterType: String, CaseIterable {
-        case all = "All"
-        case today = "Today"
-        case text = "Text"
-        case image = "Image"
-        case link = "Link"
-    }
     
     init() {
         loadPersistedItems()
@@ -141,22 +139,90 @@ class ClipboardManager: ObservableObject {
         lastChangeCount = pasteboard.changeCount
     }
     
+    func copyAndPaste(_ item: ClipboardItem) {
+        print("🔥 copyAndPaste called with item: \(item.preview)")
+        
+        // Check for accessibility permissions first
+        guard checkAccessibilityPermissions() else {
+            print("❌ Accessibility permissions not granted")
+            return
+        }
+        
+        print("✅ Accessibility permissions granted")
+        
+        // First copy to clipboard
+        copyToClipboard(item)
+        print("📋 Item copied to clipboard")
+        
+        // Hide the popover immediately
+        menuBarManager?.hidePopover()
+        print("📱 Popover hidden")
+        
+        // Use AppleScript for more reliable automation
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            print("⏰ Executing paste automation after delay")
+            // Try direct AppleScript to frontmost app first
+            let frontmostScript = """
+                tell application "System Events"
+                    tell process 1 where frontmost is true
+                        keystroke "v" using command down
+                    end tell
+                end tell
+            """
+            
+            if let scriptObject = NSAppleScript(source: frontmostScript) {
+                print("📜 Executing frontmost AppleScript")
+                var error: NSDictionary?
+                scriptObject.executeAndReturnError(&error)
+                
+                if let error = error {
+                    print("❌ Frontmost AppleScript error: \(error)")
+                    // Try generic System Events approach
+                    self.tryGenericAppleScript()
+                } else {
+                    print("✅ Paste executed successfully via frontmost AppleScript")
+                }
+            } else {
+                print("❌ Failed to create AppleScript object")
+                // Fallback to CGEvent if AppleScript creation fails
+                self.fallbackPaste()
+            }
+        }
+    }
+    
+    private func fallbackPaste() {
+        print("🔧 Attempting CGEvent fallback paste")
+        guard checkCGEventPermissions() else {
+            print("❌ CGEvent permissions not available")
+            return
+        }
+        
+        print("✅ CGEvent permissions available")
+        let source = CGEventSource(stateID: .combinedSessionState)
+        
+        if let vKeyDown = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: true),
+           let vKeyUp = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: false) {
+            
+            // Set timestamps for Sequoia compatibility
+            let timestamp = mach_absolute_time()
+            vKeyDown.timestamp = timestamp
+            vKeyUp.timestamp = timestamp + 1000000 // 1ms later
+            
+            vKeyDown.flags = .maskCommand
+            vKeyUp.flags = .maskCommand
+            
+            print("⌨️ Posting CGEvent key events")
+            vKeyDown.post(tap: .cghidEventTap)
+            usleep(10000) // 10ms delay between events
+            vKeyUp.post(tap: .cghidEventTap)
+            print("✅ CGEvent paste executed")
+        } else {
+            print("❌ Failed to create CGEvent key events")
+        }
+    }
+    
     var filteredItems: [ClipboardItem] {
         var filtered = items
-        
-        switch selectedFilter {
-        case .all:
-            break
-        case .today:
-            let today = Calendar.current.startOfDay(for: Date())
-            filtered = filtered.filter { $0.timestamp >= today }
-        case .text:
-            filtered = filtered.filter { $0.type == .text }
-        case .image:
-            filtered = filtered.filter { $0.type == .image }
-        case .link:
-            filtered = filtered.filter { $0.type == .link }
-        }
         
         if !searchText.isEmpty {
             filtered = filtered.filter { item in
@@ -173,5 +239,115 @@ class ClipboardManager: ObservableObject {
     
     private func saveItems() {
         persistenceManager.saveClipboardItems(items)
+    }
+    
+    func clearHistory() {
+        items.removeAll()
+        persistenceManager.clearAllItems()
+    }
+    
+    // MARK: - Permission Management
+    
+    func debugPermissionStatus() {
+        let isTrusted = AXIsProcessTrusted()
+        print("🔍 Current accessibility permission status: \(isTrusted)")
+        
+        let canCreateCGEvent = checkCGEventPermissions()
+        print("🔍 CGEvent permissions status: \(canCreateCGEvent)")
+    }
+    
+    private func checkAccessibilityPermissions() -> Bool {
+        let now = Date()
+        
+        // Use cached result if check was recent (within 30 seconds)
+        if let cached = cachedPermissionStatus,
+           now.timeIntervalSince(lastPermissionCheck) < 30 {
+            if !cached {
+                requestAccessibilityPermissions()
+            }
+            return cached
+        }
+        
+        // Perform fresh permission check
+        let isTrusted = AXIsProcessTrusted()
+        cachedPermissionStatus = isTrusted
+        lastPermissionCheck = now
+        
+        if !isTrusted {
+            requestAccessibilityPermissions()
+        }
+        
+        return isTrusted
+    }
+    
+    private func checkCGEventPermissions() -> Bool {
+        let eventTap = CGEvent.tapCreate(
+            tap: .cgSessionEventTap,
+            place: .headInsertEventTap,
+            options: .listenOnly,
+            eventsOfInterest: CGEventMask(1 << CGEventType.keyDown.rawValue),
+            callback: { _, _, event, _ in return Unmanaged.passRetained(event) },
+            userInfo: nil
+        )
+        
+        return eventTap != nil
+    }
+    
+    private func requestAccessibilityPermissions() {
+        guard !hasShownPermissionAlert else { return }
+        
+        hasShownPermissionAlert = true
+        
+        // Reset the flag after 5 minutes to allow showing again if needed
+        DispatchQueue.main.asyncAfter(deadline: .now() + 300) {
+            self.hasShownPermissionAlert = false
+        }
+        
+        DispatchQueue.main.async {
+            let alert = NSAlert()
+            alert.messageText = "Accessibility Permission Required"
+            alert.informativeText = "ClipFlow needs Accessibility permission to paste clipboard content automatically. Click 'Open Settings' to grant permission."
+            alert.alertStyle = .informational
+            alert.addButton(withTitle: "Open Settings")
+            alert.addButton(withTitle: "Cancel")
+            
+            let response = alert.runModal()
+            
+            if response == .alertFirstButtonReturn {
+                self.openAccessibilitySettings()
+            }
+        }
+    }
+    
+    private func openAccessibilitySettings() {
+        let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!
+        NSWorkspace.shared.open(url)
+    }
+    
+    private func tryGenericAppleScript() {
+        print("🔄 Trying generic AppleScript approach")
+        let genericScript = """
+            tell application "System Events"
+                keystroke "v" using command down
+            end tell
+        """
+        
+        if let scriptObject = NSAppleScript(source: genericScript) {
+            print("📜 Executing generic AppleScript")
+            var error: NSDictionary?
+            scriptObject.executeAndReturnError(&error)
+            
+            if let error = error {
+                print("❌ Generic AppleScript error: \(error)")
+                // Final fallback to CGEvent
+                self.fallbackPaste()
+            } else {
+                print("✅ Paste executed successfully via generic AppleScript")
+            }
+        } else {
+            print("❌ Failed to create generic AppleScript object")
+            // Final fallback to CGEvent
+            self.fallbackPaste()
+        }
     }
 }
