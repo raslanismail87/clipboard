@@ -1,6 +1,6 @@
 # Installing ClipFlow with Homebrew
 
-ClipFlow can be installed using Homebrew for a simple, clean installation process.
+ClipFlow can be installed using Homebrew, which will build the app locally on your machine and install it directly to your Applications folder. This avoids all Gatekeeper and code signing issues!
 
 ## Quick Install
 
@@ -8,9 +8,17 @@ ClipFlow can be installed using Homebrew for a simple, clean installation proces
 # Add the ClipFlow tap
 brew tap raslanismail87/clipboard https://github.com/raslanismail87/clipboard
 
-# Install ClipFlow
+# Install ClipFlow (builds from source)
 brew install clipflow
 ```
+
+**Note**: This will clone the repository, build ClipFlow using your local Swift toolchain, and install it directly to `/Applications/ClipFlow.app`.
+
+## Requirements
+
+- **Xcode Command Line Tools**: `xcode-select --install`
+- **Swift 5.5+**: Included with Xcode Command Line Tools
+- **macOS 11.0+**: Big Sur or later
 
 ## Manual Install Steps
 
@@ -33,16 +41,14 @@ After installation:
 
 1. **Launch ClipFlow**:
    ```bash
-   open "$(brew --prefix)/bin/ClipFlow.app"
+   open "/Applications/ClipFlow.app"
    ```
 
-2. **Handle security dialog**:
-   - Right-click the app → Select "Open"
-   - Click "Open" in the security dialog
+2. **Since the app was built locally, it should launch without Gatekeeper issues!**
 
 3. **Grant permissions**:
-   - Allow accessibility permissions when prompted
-   - This enables the auto-paste feature
+   - Allow accessibility permissions when prompted in System Preferences
+   - This enables the auto-paste feature (double-click to copy and paste)
 
 ## Updating
 

@@ -1,31 +1,45 @@
 class Clipflow < Formula
   desc "Lightweight clipboard manager for macOS"
   homepage "https://raslanismail87.github.io/clipboard/"
-  url "https://github.com/raslanismail87/clipboard/raw/master/ClipFlow-1.1.3-app.zip"
+  url "https://github.com/raslanismail87/clipboard.git"
   version "1.1.3"
-  sha256 "75178a42c7cfa641d36226c17dc7c3ec118021f4daecc3853343a5d4fcfa785f"
+  head "https://github.com/raslanismail87/clipboard.git"
+  
+  depends_on :macos
+  depends_on xcode: :build
   
   def install
-    prefix.install "ClipFlow.app"
+    # Make build script executable
+    chmod "+x", "build_app.sh"
+    
+    # Build the app using the project's build script
+    system "./build_app.sh"
+    
+    # Install the built app to Applications folder
+    system "cp", "-R", "build/ClipFlow.app", "/Applications/"
+    
+    # Also create a symlink in Homebrew prefix for consistency
+    prefix.install "build/ClipFlow.app"
   end
   
   def caveats
     <<~EOS
       ClipFlow has been installed to:
-        #{prefix}/ClipFlow.app
+        /Applications/ClipFlow.app
+      
+      Since this was built locally on your machine, it should launch
+      without Gatekeeper issues.
       
       To run ClipFlow:
-        open "#{prefix}/ClipFlow.app"
+        open "/Applications/ClipFlow.app"
       
-      To add ClipFlow to your Applications folder:
-        ln -sf "#{prefix}/ClipFlow.app" "/Applications/ClipFlow.app"
+      On first launch, you may need to grant accessibility permissions
+      in System Preferences > Security & Privacy > Privacy > Accessibility
+      for the auto-paste feature to work.
       
-      Note: On first launch, you may need to:
-        1. Right-click the app and select "Open"
-        2. Click "Open" in the security dialog
-        3. Grant accessibility permissions in System Preferences
-      
-      This is normal for unsigned applications.
+      To uninstall completely:
+        brew uninstall clipflow
+        rm -rf "/Applications/ClipFlow.app"
     EOS
   end
   
