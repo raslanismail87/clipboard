@@ -9,11 +9,11 @@ class Clipflow < Formula
   depends_on xcode: :build
   
   def install
-    # Make build script executable
-    chmod "+x", "build_app.sh"
+    # Make Homebrew-compatible build script executable
+    chmod "+x", "build_for_homebrew.sh"
     
-    # Build the app using the project's build script
-    system "./build_app.sh"
+    # Build the app using Homebrew-compatible script (avoids SPM sandbox issues)
+    system "./build_for_homebrew.sh"
     
     # Install the built app to Applications folder
     system "cp", "-R", "build/ClipFlow.app", "/Applications/"
