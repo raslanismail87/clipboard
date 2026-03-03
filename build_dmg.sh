@@ -1,165 +1,90 @@
 #!/bin/bash
-
-# Build DMG for ClipFlow macOS app
+set -e
 
 APP_NAME="ClipFlow"
+BUILD_DIR="build"
+STAGING_DIR="dmg_staging"
 
-# Auto-increment version
-VERSION_FILE=".version"
-if [ ! -f "$VERSION_FILE" ]; then
-    echo "1.1.0" > "$VERSION_FILE"
-fi
-
-# Read current version
-CURRENT_VERSION=$(cat "$VERSION_FILE")
-
-# Parse version components
-IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
-
-# Increment patch version
-PATCH=$((PATCH + 1))
-
-# Create new version
-VERSION="${MAJOR}.${MINOR}.${PATCH}"
-
-# Save new version
-echo "$VERSION" > "$VERSION_FILE"
-
-# Update DMG name
+# Read version from Info.plist
+VERSION=$(python3 -c "
+import plistlib
+with open('Info.plist','rb') as f:
+    d = plistlib.load(f)
+print(d.get('CFBundleShortVersionString','1.0'))
+")
 DMG_NAME="${APP_NAME}-${VERSION}"
 
-echo "🔄 Auto-incrementing version: $CURRENT_VERSION → $VERSION"
-BUILD_DIR="build"
-DMG_DIR="dmg_build"
-BACKGROUND_IMG="dmg_background.png"
+echo "Building $DMG_NAME.dmg  (version $VERSION)"
+echo ""
 
-echo "Building ${APP_NAME} DMG installer..."
+# ── 1. Build the .app ─────────────────────────────────────────────────────────
+echo "Step 1/4  Building app bundle..."
+bash "$(dirname "$0")/build_app.sh"
+echo ""
 
-# Clean previous DMG builds
-rm -rf "$DMG_DIR"
-rm -f "${APP_NAME}"-*.dmg
-echo "🧹 Cleaned old DMG files"
+# ── 2. Create staging directory ───────────────────────────────────────────────
+echo "Step 2/4  Preparing DMG staging area..."
+rm -rf "$STAGING_DIR"
+mkdir -p "$STAGING_DIR"
 
-# First build the app if it doesn't exist
-if [ ! -d "$BUILD_DIR/$APP_NAME.app" ]; then
-    echo "App not found, building first..."
-    ./build_app.sh
-    if [ $? -ne 0 ]; then
-        echo "❌ App build failed"
-        exit 1
-    fi
-fi
+cp -R "$BUILD_DIR/$APP_NAME.app" "$STAGING_DIR/"
+ln -s /Applications "$STAGING_DIR/Applications"
 
-# Create DMG staging directory
-mkdir -p "$DMG_DIR"
+# Strip any quarantine attributes from the copy
+xattr -cr "$STAGING_DIR/$APP_NAME.app" 2>/dev/null || true
 
-# Copy app to DMG directory
-echo "Copying app bundle..."
-cp -R "$BUILD_DIR/$APP_NAME.app" "$DMG_DIR/"
+# ── 3. Create DMG ─────────────────────────────────────────────────────────────
+echo "Step 3/4  Creating DMG..."
+rm -f "${DMG_NAME}.dmg"
 
-# Remove quarantine and extended attributes from app bundle
-echo "Cleaning app bundle attributes..."
-xattr -cr "$DMG_DIR/$APP_NAME.app" 2>/dev/null || true
+hdiutil create \
+    -volname "$APP_NAME" \
+    -srcfolder "$STAGING_DIR" \
+    -ov \
+    -format UDZO \
+    "${DMG_NAME}.dmg"
 
-# Ensure proper permissions
-chmod -R 755 "$DMG_DIR/$APP_NAME.app"
+# Strip quarantine from the DMG file itself
+xattr -cr "${DMG_NAME}.dmg" 2>/dev/null || true
 
-# Create Applications symlink for easy installation
-ln -s /Applications "$DMG_DIR/Applications"
-
-# Create a simple background image programmatically
-cat > create_bg.py << 'EOF'
-from PIL import Image, ImageDraw, ImageFont
-import os
-
-# Create a 600x400 background image
-width, height = 600, 400
-img = Image.new('RGB', (width, height), color='#f8f9fa')
-draw = ImageDraw.Draw(img)
-
-# Add gradient effect
-for y in range(height):
-    color_ratio = y / height
-    r = int(248 + (102 - 248) * color_ratio)
-    g = int(249 + (126 - 249) * color_ratio)
-    b = int(250 + (234 - 250) * color_ratio)
-    draw.line([(0, y), (width, y)], fill=(r, g, b))
-
-# Add text instructions
-try:
-    font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 24)
-    small_font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 16)
-except:
-    font = ImageFont.load_default()
-    small_font = ImageFont.load_default()
-
-draw.text((width//2, height//2 - 40), "Drag ClipFlow to Applications", 
-          fill='#2c3e50', font=font, anchor='mm')
-draw.text((width//2, height//2 + 20), "to install", 
-          fill='#6c757d', font=small_font, anchor='mm')
-
-img.save('dmg_background.png')
-print("Background image created")
-EOF
-
-# Create background image (fallback if Python/PIL not available)
-if command -v python3 &> /dev/null && python3 -c "import PIL" 2>/dev/null; then
-    python3 create_bg.py
-    rm create_bg.py
-else
-    echo "Creating simple background..."
-    # Create a simple solid color background as fallback
-    sips -s format png --setProperty pixelsWide 600 --setProperty pixelsHigh 400 -s formatOptions high /System/Library/CoreServices/DefaultDesktop.heic --out dmg_background.png 2>/dev/null || {
-        # Ultimate fallback - create empty background
-        touch dmg_background.png
-    }
-fi
-
-# Copy background to DMG directory if it exists
-if [ -f "dmg_background.png" ]; then
-    cp dmg_background.png "$DMG_DIR/.background.png"
-fi
-
-# Create DMG
-echo "Creating DMG..."
-hdiutil create -volname "$APP_NAME" -srcfolder "$DMG_DIR" -ov -format UDZO "${DMG_NAME}.dmg"
-
-# Remove quarantine attribute to prevent Gatekeeper issues
-echo "Removing quarantine attributes..."
-xattr -rc "${DMG_NAME}.dmg" 2>/dev/null || true
-
-# Verify DMG integrity
-echo "Verifying DMG integrity..."
+# ── 4. Verify ─────────────────────────────────────────────────────────────────
+echo "Step 4/4  Verifying DMG..."
 hdiutil verify "${DMG_NAME}.dmg"
 
-# Apply Gatekeeper fix
-echo "Applying Gatekeeper compatibility fixes..."
-./fix_gatekeeper.sh >/dev/null 2>&1 && echo "✅ Gatekeeper fixes applied" || echo "⚠️  Gatekeeper fix failed (DMG should still work)"
-
-if [ $? -eq 0 ]; then
-    echo "✅ DMG created successfully: ${DMG_NAME}.dmg"
-    echo "🎯 Version: $VERSION"
-    
-    # Get DMG size
-    DMG_SIZE=$(ls -lh "${DMG_NAME}.dmg" | awk '{print $5}')
-    echo "📦 DMG size: $DMG_SIZE"
-    
-    echo ""
-    echo "🚀 DMG ready for distribution!"
-    echo "📋 File: ${DMG_NAME}.dmg"
-    echo "🔢 Version: $VERSION"
-    echo "👥 Users can simply download and drag ClipFlow.app to Applications"
-    echo ""
-    echo "💡 Next steps:"
-    echo "   - Test the DMG installation"
-    echo "   - Update GitHub Pages with new version"
-    echo "   - Commit and push the new version"
-    
-    # Clean up
-    rm -rf "$DMG_DIR"
-    rm -f dmg_background.png
-    rm -f create_bg.py 2>/dev/null
+# Quick mount/unmount test
+MOUNT_POINT=$(hdiutil attach "${DMG_NAME}.dmg" -nobrowse -noverify | awk 'END{print $NF}')
+if [ -d "$MOUNT_POINT/$APP_NAME.app" ] && [ -L "$MOUNT_POINT/Applications" ]; then
+    echo "  Mount test: OK (app and Applications symlink present)"
 else
-    echo "❌ DMG creation failed"
-    exit 1
+    echo "  WARNING: mount test inconclusive"
 fi
+hdiutil detach "$MOUNT_POINT" -quiet
+
+# Checksum
+SHASUM=$(shasum -a 256 "${DMG_NAME}.dmg" | awk '{print $1}')
+DMG_SIZE=$(ls -lh "${DMG_NAME}.dmg" | awk '{print $5}')
+
+# Cleanup staging
+rm -rf "$STAGING_DIR"
+
+# ── Summary ───────────────────────────────────────────────────────────────────
+echo ""
+echo "────────────────────────────────────────────"
+echo "  File    : ${DMG_NAME}.dmg"
+echo "  Size    : $DMG_SIZE"
+echo "  SHA-256 : $SHASUM"
+echo "────────────────────────────────────────────"
+echo ""
+echo "Send ${DMG_NAME}.dmg to colleagues."
+echo ""
+echo "Installation instructions for recipients"
+echo "(one-time, because the app is not notarized):"
+echo ""
+echo "  1. Open ${DMG_NAME}.dmg"
+echo "  2. Drag ClipFlow into the Applications folder"
+echo "  3. Eject the DMG"
+echo "  4. In Applications, RIGHT-CLICK ClipFlow → Open"
+echo "  5. Click 'Open' in the Gatekeeper dialog"
+echo "  6. ClipFlow will appear in the menu bar (top-right)"
+echo "  7. Press Option+Space to open the clipboard history"
+echo ""

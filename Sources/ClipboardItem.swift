@@ -1,57 +1,60 @@
 import Foundation
 import AppKit
 
-enum ClipboardItemType {
-    case text
-    case image
-    case link
-    case file
-}
-
 struct ClipboardItem: Identifiable, Equatable {
     let id: UUID
-    let content: Any
-    let type: ClipboardItemType
+    var content: ClipboardContent
     let timestamp: Date
     let sourceApp: String?
-    
-    init(content: Any, type: ClipboardItemType, timestamp: Date, sourceApp: String?) {
-        self.id = UUID()
-        self.content = content
-        self.type = type
-        self.timestamp = timestamp
-        self.sourceApp = sourceApp
-    }
-    
-    init(id: UUID, content: Any, type: ClipboardItemType, timestamp: Date, sourceApp: String?) {
+    var isPinned: Bool
+    var editedContent: String?
+    var pasteCount: Int
+    var lastUsedAt: Date?
+
+    init(
+        id: UUID = UUID(),
+        content: ClipboardContent,
+        timestamp: Date = Date(),
+        sourceApp: String? = nil,
+        isPinned: Bool = false,
+        editedContent: String? = nil,
+        pasteCount: Int = 0,
+        lastUsedAt: Date? = nil
+    ) {
         self.id = id
         self.content = content
-        self.type = type
         self.timestamp = timestamp
         self.sourceApp = sourceApp
+        self.isPinned = isPinned
+        self.editedContent = editedContent
+        self.pasteCount = pasteCount
+        self.lastUsedAt = lastUsedAt
     }
-    
-    var preview: String {
-        switch type {
-        case .text:
-            if let text = content as? String {
-                return String(text.prefix(100))
-            }
-        case .link:
-            if let url = content as? URL {
-                return url.absoluteString
-            }
-        case .image:
-            return "Image"
-        case .file:
-            if let url = content as? URL {
-                return url.lastPathComponent
-            }
+
+    var type: ClipboardItemType { content.itemType }
+
+    var effectiveText: String? {
+        if let edited = editedContent { return edited }
+        switch content {
+        case .text(let s): return s
+        case .link(let u): return u.absoluteString
+        case .color(let hex): return hex
+        default: return nil
         }
-        return "Unknown content"
     }
-    
+
+    var preview: String {
+        if let edited = editedContent { return String(edited.prefix(200)) }
+        switch content {
+        case .text(let s): return String(s.prefix(200))
+        case .link(let u): return u.absoluteString
+        case .image: return "Image"
+        case .file(let u): return u.lastPathComponent
+        case .color(let hex): return hex
+        }
+    }
+
     static func == (lhs: ClipboardItem, rhs: ClipboardItem) -> Bool {
-        return lhs.id == rhs.id
+        lhs.id == rhs.id
     }
 }
